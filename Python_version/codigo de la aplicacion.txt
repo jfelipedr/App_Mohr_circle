@@ -1,0 +1,815 @@
+classdef TareaMohr < matlab.apps.AppBase
+
+    % Properties that correspond to app components
+    properties (Access = public)
+        UIFigure                matlab.ui.Figure
+        GridLayout              matlab.ui.container.GridLayout
+        LeftPanel               matlab.ui.container.Panel
+        xxLabel                 matlab.ui.control.Label
+        EsfuerzoXX              matlab.ui.control.NumericEditField
+        YYLabel                 matlab.ui.control.Label
+        EsfuerzoYY              matlab.ui.control.NumericEditField
+        XYLabel                 matlab.ui.control.Label
+        EsfuerzoXY              matlab.ui.control.NumericEditField
+        Label                   matlab.ui.control.Label
+        Theta                   matlab.ui.control.NumericEditField
+        CalcularButton          matlab.ui.control.Button
+        Lamp                    matlab.ui.control.Lamp
+        AutoUpdateSwitchLabel   matlab.ui.control.Label
+        Switch                  matlab.ui.control.Switch
+        GridCheckBox            matlab.ui.control.CheckBox
+        ELabel                  matlab.ui.control.Label
+        Elasticidad             matlab.ui.control.NumericEditField
+        ZZLabel                 matlab.ui.control.Label
+        EsfuerzoZZ              matlab.ui.control.NumericEditField
+        PoissonRatioLabel       matlab.ui.control.Label
+        Poisson                 matlab.ui.control.NumericEditField
+        DATOSDEENTRADA          matlab.ui.control.Label
+        yieldEditFieldLabel     matlab.ui.control.Label
+        Yield                   matlab.ui.control.NumericEditField
+        CenterPanel             matlab.ui.container.Panel
+        GraficaStress           matlab.ui.control.UIAxes
+        GraficaMohr             matlab.ui.control.UIAxes
+        GraficaFS               matlab.ui.control.UIAxes
+        GraficaDef              matlab.ui.control.UIAxes
+        RightPanel              matlab.ui.container.Panel
+        RadioEditFieldLabel     matlab.ui.control.Label
+        Radiomohr               matlab.ui.control.EditField
+        CentroEditFieldLabel    matlab.ui.control.Label
+        Centromohr              matlab.ui.control.EditField
+        Label_2                 matlab.ui.control.Label
+        sigma1                  matlab.ui.control.EditField
+        Label_3                 matlab.ui.control.Label
+        sigma2                  matlab.ui.control.EditField
+        pEditFieldLabel         matlab.ui.control.Label
+        tetaP                   matlab.ui.control.EditField
+        maxLabel                matlab.ui.control.Label
+        tetaMax                 matlab.ui.control.EditField
+        xxLabel_2               matlab.ui.control.Label
+        Dxx                     matlab.ui.control.EditField
+        yyLabel                 matlab.ui.control.Label
+        Dyy                     matlab.ui.control.EditField
+        zzLabel                 matlab.ui.control.Label
+        Dzz                     matlab.ui.control.EditField
+        xyEditFieldLabel        matlab.ui.control.Label
+        Gamaxy                  matlab.ui.control.EditField
+        DatosdeMohr             matlab.ui.control.Label
+        DatosdeDeformacion      matlab.ui.control.Label
+        FactordeSeguridad       matlab.ui.control.Label
+        TrescaEditFieldLabel    matlab.ui.control.Label
+        Tresca                  matlab.ui.control.EditField
+        VonMisesEditFieldLabel  matlab.ui.control.Label
+        VonMises                matlab.ui.control.EditField
+    end
+
+    % Properties that correspond to apps with auto-reflow
+    properties (Access = private)
+        onePanelWidth = 576;
+        twoPanelWidth = 768;
+    end
+
+    properties (Access = private)
+        autoUpdate 
+    end
+    
+    methods (Access = private)
+        
+        function updateplot(app) %results = updateplot(app)
+            
+            ex = app.EsfuerzoXX.Value;
+            ey = app.EsfuerzoYY.Value;
+            ez = app.EsfuerzoZZ.Value;
+            eshear = app.EsfuerzoXY.Value;
+            theta = app.Theta.Value; 
+            E = app.Elasticidad.Value;
+            yield = app.Yield.Value;
+            poisson = app.Poisson.Value;
+            teta = 0:0.01:360;
+            rad = pi/180;
+            
+%             Deformación xx
+            DeformacionXX = (1/E) * ((ex - (poisson *(ey + ez))));
+            app.Dxx.Value = num2str(DeformacionXX);
+            
+%             Deformación yy
+            DeformacionYY = (1/E) * ((ey - (poisson *(ex + ez))));
+            app.Dyy.Value = num2str(DeformacionYY);
+            
+%             Deformación zz
+            DeformacionZZ = (1/E) * ((ez - (poisson *(ey + ex))));
+            app.Dzz.Value = num2str(DeformacionZZ);         
+            
+            % Deformación xy (agregar cuadro de texto)
+            DeformacionXY = (((eshear *2*(1 + poisson))/E));
+            app.Gamaxy.Value = num2str(DeformacionXY);
+            
+%             Deformación 1
+            Deformacion1 = ((ex + ey)/2) + (0.5) * sqrt((ex - ey)^2 + ((DeformacionXY)^2));
+%             Deformacion 2
+            Deformacion2 = ((ex + ey)/2) - (0.5) * sqrt((ex - ey)^2 + ((DeformacionXY)^2));             
+%             Centro-Deformación
+            cd = (ex + ey)/2;              
+%             Radio- Deformación
+            rd = (0.5) * sqrt((ex - ey)^2 + ((DeformacionXY)^2));
+            xd = cd + (rd * cos(teta*rad));
+            yd = rd * sin(teta*rad);
+%            Circulo de deformacíon z
+%          Deformación z
+            Deformacion3 = DeformacionZZ;
+            cd2 = (Deformacion2 + Deformacion3)/2;
+            rd2 = (Deformacion2 - Deformacion3)/2;
+            xd2 = cd2 + (rd2 * cos(teta*rad));
+            yd2 = rd2 * sin(teta*rad);
+           %%Circulo 3 de deformación
+            cd3 = (Deformacion1 + Deformacion3)/2;
+            rd3 = (Deformacion1 - Deformacion3)/2;
+            xd3 = cd3 + (rd3 * cos(teta*rad));
+            yd3 = rd3 * sin(teta*rad);
+                        
+%             Graficas de sen vs teta
+            EXX = (ex + ey)/2 + (ex - ey) * cos(2*teta*rad + theta*rad)/2 + ...
+                eshear * sin(2*teta*rad + theta*rad);
+            EXY = -(ex - ey) * sin(2*teta*rad + theta*rad)/2 + ...
+                eshear * cos(2*teta*rad + theta*rad);
+                        
+%             Circulo de Mohr
+            %(EXX - a).^2 + EXY^2 = c.^2;
+            c = (ex + ey)/2;
+            r = sqrt(((ex - ey)/2)^2 + eshear^2);
+            x = c + (r * cos(teta*rad));
+            y = r * sin(teta*rad);
+            r2 = ((c-r) - ez)/2;          
+            c2= c-r-r2;
+            x2 = c2 + (r2 * cos(teta*rad));
+            y2 = r2 * sin(teta*rad);
+            r3 = abs(((c+r)-ez)/2); 
+            c3 = ((c+r)+ez)/2;
+            x3 = c3 + (r3 * cos(teta*rad));
+            y3 = r3 * sin(teta*rad);
+            y1 = -abs(eshear):0.01:abs(eshear);
+            x1 = ((ey - ex) / (2*eshear))*y1 +c;
+            
+%             criterio de falla REVISAR
+            sig1 = str2num(app.sigma1.Value):0.01:str2num(app.sigma1.Value);
+            sig2 = str2num(app.sigma2.Value);
+            
+%             elipse de VonMisses            
+            q = sqrt(2)*yield * cos(teta*rad);
+            w = sqrt(2)/sqrt(3)*yield * sin(teta*rad);
+            m = q*cos(45*rad) - w*sin(45*rad);
+            n = q*sin(45*rad) + w*cos(45*rad); 
+            
+%             linea superior Tresca
+            xs1 = -yield:0.03:0;
+            ys1 = xs1 + yield;
+            xs2 = 0:0.03:yield;
+            ys2 = 0*xs2 + yield; 
+            ys3 = 0:0.03:yield; %cambiar oreden de las variables
+            xs3 = 0*ys3 + yield;        
+
+%             linea inferior Tresca
+            yi1 = -yield:0.03:0;
+            xi1 = -yield + 0*yi1; %cambiar oreden de las variables
+            xi2 = -yield:0.03:0;
+            yi2 = -yield + 0*xi2;        
+            xi3 = 0:0.03:yield;
+            yi3 = xi3 - yield;            
+           
+%             graficas criterios de falla
+            plot(app.GraficaFS,xs1,ys1,xs2,ys2,xs3,ys3,...
+                xi1,yi1,xi2,yi2,xi3,yi3,sig1,sig2,'*m',m,n,'r');            
+%             graficas esfuerzo'' vs teta
+            plot(app.GraficaStress,teta,EXX, teta,EXY);
+            legend(app.GraficaStress,["σ x'x'","σ x'y'"],'Location','Best');
+%            graficas de Mohr
+            plot(app.GraficaMohr,x,y,x2,y2,'--',x3,y3,'--',ey,eshear,'*b',x1,y1,'--k');   
+            legend(app.GraficaMohr,["principal","segundo","tercero(global)","eyy,exy",...
+                "angulo principal"],'Location','Best');
+%             grafica deformacion
+            plot(app.GraficaDef,xd,yd,xd2,yd2,'--',xd3,yd3,'--');
+            legend(app.GraficaDef,["principal","segundo","tercero(global)"],'Location','Best');
+            
+            %%Factor de seguridad por Tresca
+            S1 = abs(sig1);
+            S2 = abs(sig2);
+            tresca = (app.Yield.Value / (max(S1,S2)));
+            app.Tresca.Value = num2str(tresca);
+          
+            %Factor de seguridad por Von Mises           
+            %Esfuerzo equivalente de Von Mises
+            Eequivalendevonmises = sqrt(ex^2+ey^2-ex*ey+3*eshear^2);
+            fsvonmises = (app.Yield.Value)/(Eequivalendevonmises);
+            app.VonMises.Value = num2str(fsvonmises);
+            
+        end
+        
+    end
+    
+
+    % Callbacks that handle component events
+    methods (Access = private)
+
+        % Code that executes after component creation
+        function startupFcn(app)
+            app.autoUpdate = 0;
+        end
+
+        % Value changed function: Switch
+        function SwitchValueChanged(app, event)
+            if strcmp(app.Switch.Value, 'On')
+                app.CalcularButton.Enable = 'off';
+                app.Lamp.Color = [0 1 0];
+                app.autoUpdate = 1 ;
+            else
+                app.CalcularButton.Enable = 'on';
+                app.Lamp.Color = [0.65 0.65 0.65];
+                app.autoUpdate = 0 ;
+            end
+        end
+
+        % Button pushed function: CalcularButton
+        function CalcularButtonPushed(app, event)
+%             REVISAR FUNCION DE GRAFICA
+ %% Calculo del centro del circulo de Mohr
+            Centro = (app.EsfuerzoXX.Value + app.EsfuerzoYY.Value)/2;
+            app.Centromohr.Value = num2str(Centro);
+            
+            %% Calculo del radio del circulo de Mohr
+            Radio = sqrt((((app.EsfuerzoXX.Value - app.EsfuerzoYY.Value)/2)^2) ...
+                + ((app.EsfuerzoXY.Value)^2));
+            app.Radiomohr.Value = num2str(Radio);
+            
+            %% Esfuerzo principal 1- Centro+Radio
+            Sigma1 = (app.EsfuerzoXX.Value + app.EsfuerzoYY.Value)/2 + ...
+                sqrt((((app.EsfuerzoXX.Value - app.EsfuerzoYY.Value)/2)^2) + ...
+                ((app.EsfuerzoXY.Value)^2));
+            app.sigma1.Value = num2str(Sigma1);
+            
+            %% Esfuerzo principal w- Centro-Radio
+            Sigma2 = (app.EsfuerzoXX.Value + app.EsfuerzoYY.Value)/2 - ...
+                sqrt((((app.EsfuerzoXX.Value - app.EsfuerzoYY.Value)/2)^2) + ...
+                ((app.EsfuerzoXY.Value)^2));
+            app.sigma2.Value = num2str(Sigma2);
+            
+            %% Angulo donde ocurre el esfuerzo a tensión
+            wer= (app.EsfuerzoXY.Value)/(app.EsfuerzoXX.Value - Centro);
+            thetasigmamax = ((atand(wer))/2)+ 90;
+            app.tetaP.Value = num2str(thetasigmamax);
+            
+            %% Angulo donde ocurre el cortante maximo
+            thetataomax = (thetasigmamax - 45);
+            app.tetaMax.Value = num2str(thetataomax);
+            
+            updateplot(app)
+        end
+
+        % Value changed function: GridCheckBox
+        function GridCheckBoxValueChanged(app, event)
+            value = app.GridCheckBox.Value;
+            if value == 1
+                app.GraficaStress.XGrid = 'on';
+                app.GraficaStress.YGrid = 'on';
+                app.GraficaMohr.XGrid = 'on';
+                app.GraficaMohr.YGrid = 'on';
+                app.GraficaFS.XGrid = 'on';
+                app.GraficaFS.YGrid = 'on';
+                app.GraficaDef.XGrid = 'on';
+                app.GraficaDef.YGrid = 'on';
+            else
+                app.GraficaStress.XGrid = 'off';
+                app.GraficaStress.YGrid = 'off';
+                app.GraficaMohr.XGrid = 'off';
+                app.GraficaMohr.YGrid = 'off';
+                app.GraficaFS.XGrid = 'off';
+                app.GraficaFS.YGrid = 'off';
+                app.GraficaDef.XGrid = 'off';
+                app.GraficaDef.YGrid = 'off';
+            end
+        end
+
+        % Changes arrangement of the app based on UIFigure width
+        function updateAppLayout(app, event)
+            currentFigureWidth = app.UIFigure.Position(3);
+            if(currentFigureWidth <= app.onePanelWidth)
+                % Change to a 3x1 grid
+                app.GridLayout.RowHeight = {671, 671, 671};
+                app.GridLayout.ColumnWidth = {'1x'};
+                app.CenterPanel.Layout.Row = 1;
+                app.CenterPanel.Layout.Column = 1;
+                app.LeftPanel.Layout.Row = 2;
+                app.LeftPanel.Layout.Column = 1;
+                app.RightPanel.Layout.Row = 3;
+                app.RightPanel.Layout.Column = 1;
+            elseif (currentFigureWidth > app.onePanelWidth && currentFigureWidth <= app.twoPanelWidth)
+                % Change to a 2x2 grid
+                app.GridLayout.RowHeight = {671, 671};
+                app.GridLayout.ColumnWidth = {'1x', '1x'};
+                app.CenterPanel.Layout.Row = 1;
+                app.CenterPanel.Layout.Column = [1,2];
+                app.LeftPanel.Layout.Row = 2;
+                app.LeftPanel.Layout.Column = 1;
+                app.RightPanel.Layout.Row = 2;
+                app.RightPanel.Layout.Column = 2;
+            else
+                % Change to a 1x3 grid
+                app.GridLayout.RowHeight = {'1x'};
+                app.GridLayout.ColumnWidth = {248, '1x', 206};
+                app.LeftPanel.Layout.Row = 1;
+                app.LeftPanel.Layout.Column = 1;
+                app.CenterPanel.Layout.Row = 1;
+                app.CenterPanel.Layout.Column = 2;
+                app.RightPanel.Layout.Row = 1;
+                app.RightPanel.Layout.Column = 3;
+            end
+        end
+
+        % Value changed function: Elasticidad, EsfuerzoXX, 
+        % EsfuerzoXY, EsfuerzoYY, EsfuerzoZZ, Poisson, Theta
+        function ValueChanged(app, event)
+% Agregar manualmente los elementos a un solo callback para actualizar
+% todos a la vez
+            if app.autoUpdate
+                updateplot(app)
+            end
+        end
+    end
+
+    % Component initialization
+    methods (Access = private)
+
+        % Create UIFigure and components
+        function createComponents(app)
+
+            % Create UIFigure and hide until all components are created
+            app.UIFigure = uifigure('Visible', 'off');
+            app.UIFigure.AutoResizeChildren = 'off';
+            app.UIFigure.Position = [100 100 1021 671];
+            app.UIFigure.Name = 'MATLAB App';
+            app.UIFigure.SizeChangedFcn = createCallbackFcn(app, @updateAppLayout, true);
+
+            % Create GridLayout
+            app.GridLayout = uigridlayout(app.UIFigure);
+            app.GridLayout.ColumnWidth = {248, '1x', 206};
+            app.GridLayout.RowHeight = {'1x'};
+            app.GridLayout.ColumnSpacing = 0;
+            app.GridLayout.RowSpacing = 0;
+            app.GridLayout.Padding = [0 0 0 0];
+            app.GridLayout.Scrollable = 'on';
+
+            % Create LeftPanel
+            app.LeftPanel = uipanel(app.GridLayout);
+            app.LeftPanel.Layout.Row = 1;
+            app.LeftPanel.Layout.Column = 1;
+
+            % Create xxLabel
+            app.xxLabel = uilabel(app.LeftPanel);
+            app.xxLabel.HorizontalAlignment = 'right';
+            app.xxLabel.FontWeight = 'bold';
+            app.xxLabel.FontAngle = 'italic';
+            app.xxLabel.Position = [78 570 27 22];
+            app.xxLabel.Text = 'σxx';
+
+            % Create EsfuerzoXX
+            app.EsfuerzoXX = uieditfield(app.LeftPanel, 'numeric');
+            app.EsfuerzoXX.ValueChangedFcn = createCallbackFcn(app, @ValueChanged, true);
+            app.EsfuerzoXX.FontWeight = 'bold';
+            app.EsfuerzoXX.FontAngle = 'italic';
+            app.EsfuerzoXX.Position = [140 570 80 22];
+
+            % Create YYLabel
+            app.YYLabel = uilabel(app.LeftPanel);
+            app.YYLabel.HorizontalAlignment = 'right';
+            app.YYLabel.FontWeight = 'bold';
+            app.YYLabel.FontAngle = 'italic';
+            app.YYLabel.Position = [76 528 29 22];
+            app.YYLabel.Text = 'σYY';
+
+            % Create EsfuerzoYY
+            app.EsfuerzoYY = uieditfield(app.LeftPanel, 'numeric');
+            app.EsfuerzoYY.ValueChangedFcn = createCallbackFcn(app, @ValueChanged, true);
+            app.EsfuerzoYY.FontWeight = 'bold';
+            app.EsfuerzoYY.FontAngle = 'italic';
+            app.EsfuerzoYY.Position = [140 528 80 22];
+
+            % Create XYLabel
+            app.XYLabel = uilabel(app.LeftPanel);
+            app.XYLabel.HorizontalAlignment = 'right';
+            app.XYLabel.FontWeight = 'bold';
+            app.XYLabel.FontAngle = 'italic';
+            app.XYLabel.Position = [76 462 29 22];
+            app.XYLabel.Text = 'σXY';
+
+            % Create EsfuerzoXY
+            app.EsfuerzoXY = uieditfield(app.LeftPanel, 'numeric');
+            app.EsfuerzoXY.ValueChangedFcn = createCallbackFcn(app, @ValueChanged, true);
+            app.EsfuerzoXY.FontWeight = 'bold';
+            app.EsfuerzoXY.FontAngle = 'italic';
+            app.EsfuerzoXY.Position = [140 462 80 22];
+
+            % Create Label
+            app.Label = uilabel(app.LeftPanel);
+            app.Label.HorizontalAlignment = 'right';
+            app.Label.FontWeight = 'bold';
+            app.Label.FontAngle = 'italic';
+            app.Label.Position = [74 430 31 22];
+            app.Label.Text = 'ϴ (°)';
+
+            % Create Theta
+            app.Theta = uieditfield(app.LeftPanel, 'numeric');
+            app.Theta.ValueChangedFcn = createCallbackFcn(app, @ValueChanged, true);
+            app.Theta.FontWeight = 'bold';
+            app.Theta.FontAngle = 'italic';
+            app.Theta.Position = [140 430 80 22];
+
+            % Create CalcularButton
+            app.CalcularButton = uibutton(app.LeftPanel, 'push');
+            app.CalcularButton.ButtonPushedFcn = createCallbackFcn(app, @CalcularButtonPushed, true);
+            app.CalcularButton.FontWeight = 'bold';
+            app.CalcularButton.Position = [78 294 100 22];
+            app.CalcularButton.Text = 'Calcular';
+
+            % Create Lamp
+            app.Lamp = uilamp(app.LeftPanel);
+            app.Lamp.Position = [175 233 20 20];
+            app.Lamp.Color = [0.651 0.651 0.651];
+
+            % Create AutoUpdateSwitchLabel
+            app.AutoUpdateSwitchLabel = uilabel(app.LeftPanel);
+            app.AutoUpdateSwitchLabel.HorizontalAlignment = 'center';
+            app.AutoUpdateSwitchLabel.Position = [58 196 72 22];
+            app.AutoUpdateSwitchLabel.Text = 'Auto Update';
+
+            % Create Switch
+            app.Switch = uiswitch(app.LeftPanel, 'slider');
+            app.Switch.ValueChangedFcn = createCallbackFcn(app, @SwitchValueChanged, true);
+            app.Switch.Position = [70 233 45 20];
+
+            % Create GridCheckBox
+            app.GridCheckBox = uicheckbox(app.LeftPanel);
+            app.GridCheckBox.ValueChangedFcn = createCallbackFcn(app, @GridCheckBoxValueChanged, true);
+            app.GridCheckBox.Text = 'Rejilla de Graficas';
+            app.GridCheckBox.Position = [48 143 119 22];
+
+            % Create ELabel
+            app.ELabel = uilabel(app.LeftPanel);
+            app.ELabel.HorizontalAlignment = 'right';
+            app.ELabel.FontWeight = 'bold';
+            app.ELabel.FontAngle = 'italic';
+            app.ELabel.Position = [82 391 25 28];
+            app.ELabel.Text = {'E'; ''; ''};
+
+            % Create Elasticidad
+            app.Elasticidad = uieditfield(app.LeftPanel, 'numeric');
+            app.Elasticidad.ValueChangedFcn = createCallbackFcn(app, @ValueChanged, true);
+            app.Elasticidad.FontWeight = 'bold';
+            app.Elasticidad.FontAngle = 'italic';
+            app.Elasticidad.Position = [140 397 80 22];
+
+            % Create ZZLabel
+            app.ZZLabel = uilabel(app.LeftPanel);
+            app.ZZLabel.HorizontalAlignment = 'right';
+            app.ZZLabel.FontWeight = 'bold';
+            app.ZZLabel.FontAngle = 'italic';
+            app.ZZLabel.Position = [76 492 29 22];
+            app.ZZLabel.Text = 'σZZ';
+
+            % Create EsfuerzoZZ
+            app.EsfuerzoZZ = uieditfield(app.LeftPanel, 'numeric');
+            app.EsfuerzoZZ.ValueChangedFcn = createCallbackFcn(app, @ValueChanged, true);
+            app.EsfuerzoZZ.FontWeight = 'bold';
+            app.EsfuerzoZZ.FontAngle = 'italic';
+            app.EsfuerzoZZ.Position = [140 492 80 22];
+
+            % Create PoissonRatioLabel
+            app.PoissonRatioLabel = uilabel(app.LeftPanel);
+            app.PoissonRatioLabel.HorizontalAlignment = 'right';
+            app.PoissonRatioLabel.FontWeight = 'bold';
+            app.PoissonRatioLabel.FontAngle = 'italic';
+            app.PoissonRatioLabel.Position = [21 336 86 22];
+            app.PoissonRatioLabel.Text = 'Poisson Ratio';
+
+            % Create Poisson
+            app.Poisson = uieditfield(app.LeftPanel, 'numeric');
+            app.Poisson.ValueChangedFcn = createCallbackFcn(app, @ValueChanged, true);
+            app.Poisson.FontWeight = 'bold';
+            app.Poisson.FontAngle = 'italic';
+            app.Poisson.Position = [140 336 80 22];
+
+            % Create DATOSDEENTRADA
+            app.DATOSDEENTRADA = uilabel(app.LeftPanel);
+            app.DATOSDEENTRADA.FontSize = 15;
+            app.DATOSDEENTRADA.FontWeight = 'bold';
+            app.DATOSDEENTRADA.Position = [49 608 158 22];
+            app.DATOSDEENTRADA.Text = 'DATOS DE ENTRADA';
+
+            % Create yieldEditFieldLabel
+            app.yieldEditFieldLabel = uilabel(app.LeftPanel);
+            app.yieldEditFieldLabel.HorizontalAlignment = 'right';
+            app.yieldEditFieldLabel.FontWeight = 'bold';
+            app.yieldEditFieldLabel.FontAngle = 'italic';
+            app.yieldEditFieldLabel.Position = [62 370 43 22];
+            app.yieldEditFieldLabel.Text = 'σ yield';
+
+            % Create Yield
+            app.Yield = uieditfield(app.LeftPanel, 'numeric');
+            app.Yield.FontWeight = 'bold';
+            app.Yield.Position = [140 370 80 22];
+
+            % Create CenterPanel
+            app.CenterPanel = uipanel(app.GridLayout);
+            app.CenterPanel.Layout.Row = 1;
+            app.CenterPanel.Layout.Column = 2;
+
+            % Create GraficaStress
+            app.GraficaStress = uiaxes(app.CenterPanel);
+            title(app.GraficaStress, 'Stress vs theta')
+            xlabel(app.GraficaStress, 'Theta')
+            ylabel(app.GraficaStress, 'Stress')
+            zlabel(app.GraficaStress, 'Z')
+            app.GraficaStress.ColorOrder = [0 0.4471 0.7412;0.851 0.3255 0.098;0.9294 0.6941 0.1255;0.4941 0.1843 0.5569;0.4667 0.6745 0.1882;0.302 0.7451 0.9333;0.6353 0.0784 0.1843];
+            app.GraficaStress.Position = [119 492 300 156];
+
+            % Create GraficaMohr
+            app.GraficaMohr = uiaxes(app.CenterPanel);
+            title(app.GraficaMohr, 'Circulo de Mohr')
+            xlabel(app.GraficaMohr, 'σ normal')
+            ylabel(app.GraficaMohr, 'σ cortante')
+            zlabel(app.GraficaMohr, 'Z')
+            app.GraficaMohr.DataAspectRatio = [1 1 1];
+            app.GraficaMohr.XAxisLocation = 'origin';
+            app.GraficaMohr.YAxisLocation = 'origin';
+            app.GraficaMohr.ColorOrder = [0 0.4471 0.7412;0.851 0.3255 0.098;0.9294 0.6941 0.1255;0.4941 0.1843 0.5569;0.4667 0.6745 0.1882;0.302 0.7451 0.9333;0.6353 0.0784 0.1843];
+            app.GraficaMohr.Position = [19 273 264 203];
+
+            % Create GraficaFS
+            app.GraficaFS = uiaxes(app.CenterPanel);
+            title(app.GraficaFS, 'Criterios de Falla')
+            xlabel(app.GraficaFS, 'σ1')
+            ylabel(app.GraficaFS, 'σ2')
+            zlabel(app.GraficaFS, 'Z')
+            app.GraficaFS.DataAspectRatio = [1 1 1];
+            app.GraficaFS.XAxisLocation = 'origin';
+            app.GraficaFS.YAxisLocation = 'origin';
+            app.GraficaFS.ColorOrder = [0 0.4471 0.7412;0 0.4471 0.7412;0 0.4471 0.7412;0 0.4471 0.7412;0 0.4471 0.7412;0 0.4471 0.7412;0.7176 0.2745 1];
+            app.GraficaFS.Position = [130 37 278 216];
+
+            % Create GraficaDef
+            app.GraficaDef = uiaxes(app.CenterPanel);
+            title(app.GraficaDef, 'Circulo de Deformación')
+            xlabel(app.GraficaDef, 'X')
+            ylabel(app.GraficaDef, 'Y')
+            zlabel(app.GraficaDef, 'Z')
+            app.GraficaDef.DataAspectRatio = [1 1 1];
+            app.GraficaDef.XAxisLocation = 'origin';
+            app.GraficaDef.YAxisLocation = 'origin';
+            app.GraficaDef.Position = [304 273 252 203];
+
+            % Create RightPanel
+            app.RightPanel = uipanel(app.GridLayout);
+            app.RightPanel.Layout.Row = 1;
+            app.RightPanel.Layout.Column = 3;
+
+            % Create RadioEditFieldLabel
+            app.RadioEditFieldLabel = uilabel(app.RightPanel);
+            app.RadioEditFieldLabel.HorizontalAlignment = 'right';
+            app.RadioEditFieldLabel.FontWeight = 'bold';
+            app.RadioEditFieldLabel.FontAngle = 'italic';
+            app.RadioEditFieldLabel.FontColor = [1 0 0];
+            app.RadioEditFieldLabel.Position = [20 574 39 22];
+            app.RadioEditFieldLabel.Text = 'Radio';
+
+            % Create Radiomohr
+            app.Radiomohr = uieditfield(app.RightPanel, 'text');
+            app.Radiomohr.Editable = 'off';
+            app.Radiomohr.FontWeight = 'bold';
+            app.Radiomohr.FontAngle = 'italic';
+            app.Radiomohr.Position = [74 574 79 22];
+
+            % Create CentroEditFieldLabel
+            app.CentroEditFieldLabel = uilabel(app.RightPanel);
+            app.CentroEditFieldLabel.HorizontalAlignment = 'right';
+            app.CentroEditFieldLabel.FontWeight = 'bold';
+            app.CentroEditFieldLabel.FontAngle = 'italic';
+            app.CentroEditFieldLabel.FontColor = [1 0 0];
+            app.CentroEditFieldLabel.Position = [15 542 44 22];
+            app.CentroEditFieldLabel.Text = 'Centro';
+
+            % Create Centromohr
+            app.Centromohr = uieditfield(app.RightPanel, 'text');
+            app.Centromohr.Editable = 'off';
+            app.Centromohr.FontWeight = 'bold';
+            app.Centromohr.FontAngle = 'italic';
+            app.Centromohr.Position = [74 542 79 22];
+
+            % Create Label_2
+            app.Label_2 = uilabel(app.RightPanel);
+            app.Label_2.HorizontalAlignment = 'right';
+            app.Label_2.FontWeight = 'bold';
+            app.Label_2.FontAngle = 'italic';
+            app.Label_2.FontColor = [1 0 0];
+            app.Label_2.Position = [34 513 25 22];
+            app.Label_2.Text = 'σ1';
+
+            % Create sigma1
+            app.sigma1 = uieditfield(app.RightPanel, 'text');
+            app.sigma1.Editable = 'off';
+            app.sigma1.FontWeight = 'bold';
+            app.sigma1.FontAngle = 'italic';
+            app.sigma1.Position = [74 513 79 22];
+
+            % Create Label_3
+            app.Label_3 = uilabel(app.RightPanel);
+            app.Label_3.HorizontalAlignment = 'right';
+            app.Label_3.FontWeight = 'bold';
+            app.Label_3.FontAngle = 'italic';
+            app.Label_3.FontColor = [1 0 0];
+            app.Label_3.Position = [34 483 25 22];
+            app.Label_3.Text = 'σ2';
+
+            % Create sigma2
+            app.sigma2 = uieditfield(app.RightPanel, 'text');
+            app.sigma2.Editable = 'off';
+            app.sigma2.FontWeight = 'bold';
+            app.sigma2.FontAngle = 'italic';
+            app.sigma2.Position = [74 483 79 22];
+
+            % Create pEditFieldLabel
+            app.pEditFieldLabel = uilabel(app.RightPanel);
+            app.pEditFieldLabel.HorizontalAlignment = 'right';
+            app.pEditFieldLabel.FontWeight = 'bold';
+            app.pEditFieldLabel.FontAngle = 'italic';
+            app.pEditFieldLabel.FontColor = [1 0 0];
+            app.pEditFieldLabel.Position = [34 454 25 22];
+            app.pEditFieldLabel.Text = 'θ p';
+
+            % Create tetaP
+            app.tetaP = uieditfield(app.RightPanel, 'text');
+            app.tetaP.Editable = 'off';
+            app.tetaP.FontWeight = 'bold';
+            app.tetaP.FontAngle = 'italic';
+            app.tetaP.Position = [74 454 79 22];
+
+            % Create maxLabel
+            app.maxLabel = uilabel(app.RightPanel);
+            app.maxLabel.HorizontalAlignment = 'right';
+            app.maxLabel.FontWeight = 'bold';
+            app.maxLabel.FontAngle = 'italic';
+            app.maxLabel.FontColor = [1 0 0];
+            app.maxLabel.Position = [11 423 48 22];
+            app.maxLabel.Text = 'θ τmax ';
+
+            % Create tetaMax
+            app.tetaMax = uieditfield(app.RightPanel, 'text');
+            app.tetaMax.FontWeight = 'bold';
+            app.tetaMax.FontAngle = 'italic';
+            app.tetaMax.Position = [74 423 79 22];
+
+            % Create xxLabel_2
+            app.xxLabel_2 = uilabel(app.RightPanel);
+            app.xxLabel_2.HorizontalAlignment = 'right';
+            app.xxLabel_2.FontWeight = 'bold';
+            app.xxLabel_2.FontAngle = 'italic';
+            app.xxLabel_2.FontColor = [1 0.4118 0.1608];
+            app.xxLabel_2.Position = [32 360 28 22];
+            app.xxLabel_2.Text = 'ε xx';
+
+            % Create Dxx
+            app.Dxx = uieditfield(app.RightPanel, 'text');
+            app.Dxx.Editable = 'off';
+            app.Dxx.FontWeight = 'bold';
+            app.Dxx.FontAngle = 'italic';
+            app.Dxx.Position = [75 360 78 22];
+
+            % Create yyLabel
+            app.yyLabel = uilabel(app.RightPanel);
+            app.yyLabel.HorizontalAlignment = 'right';
+            app.yyLabel.FontWeight = 'bold';
+            app.yyLabel.FontAngle = 'italic';
+            app.yyLabel.FontColor = [1 0.4118 0.1608];
+            app.yyLabel.Position = [32 332 28 22];
+            app.yyLabel.Text = 'ε yy';
+
+            % Create Dyy
+            app.Dyy = uieditfield(app.RightPanel, 'text');
+            app.Dyy.Editable = 'off';
+            app.Dyy.FontWeight = 'bold';
+            app.Dyy.FontAngle = 'italic';
+            app.Dyy.Position = [75 332 78 22];
+
+            % Create zzLabel
+            app.zzLabel = uilabel(app.RightPanel);
+            app.zzLabel.HorizontalAlignment = 'right';
+            app.zzLabel.FontWeight = 'bold';
+            app.zzLabel.FontAngle = 'italic';
+            app.zzLabel.FontColor = [1 0.4118 0.1608];
+            app.zzLabel.Position = [34 302 27 22];
+            app.zzLabel.Text = 'ε zz';
+
+            % Create Dzz
+            app.Dzz = uieditfield(app.RightPanel, 'text');
+            app.Dzz.Editable = 'off';
+            app.Dzz.FontWeight = 'bold';
+            app.Dzz.FontAngle = 'italic';
+            app.Dzz.Position = [76 302 78 22];
+
+            % Create xyEditFieldLabel
+            app.xyEditFieldLabel = uilabel(app.RightPanel);
+            app.xyEditFieldLabel.HorizontalAlignment = 'right';
+            app.xyEditFieldLabel.FontWeight = 'bold';
+            app.xyEditFieldLabel.FontAngle = 'italic';
+            app.xyEditFieldLabel.FontColor = [1 0.4118 0.1608];
+            app.xyEditFieldLabel.Position = [34 273 29 22];
+            app.xyEditFieldLabel.Text = 'γ xy';
+
+            % Create Gamaxy
+            app.Gamaxy = uieditfield(app.RightPanel, 'text');
+            app.Gamaxy.FontWeight = 'bold';
+            app.Gamaxy.FontAngle = 'italic';
+            app.Gamaxy.Position = [76 273 78 22];
+
+            % Create DatosdeMohr
+            app.DatosdeMohr = uilabel(app.RightPanel);
+            app.DatosdeMohr.FontSize = 15;
+            app.DatosdeMohr.FontWeight = 'bold';
+            app.DatosdeMohr.Position = [37 608 112 22];
+            app.DatosdeMohr.Text = 'Datos de Mohr';
+
+            % Create DatosdeDeformacion
+            app.DatosdeDeformacion = uilabel(app.RightPanel);
+            app.DatosdeDeformacion.FontSize = 15;
+            app.DatosdeDeformacion.FontWeight = 'bold';
+            app.DatosdeDeformacion.Position = [5 391 166 22];
+            app.DatosdeDeformacion.Text = 'Datos de Deformación';
+
+            % Create FactordeSeguridad
+            app.FactordeSeguridad = uilabel(app.RightPanel);
+            app.FactordeSeguridad.FontSize = 15;
+            app.FactordeSeguridad.FontWeight = 'bold';
+            app.FactordeSeguridad.Position = [18 232 151 22];
+            app.FactordeSeguridad.Text = 'Factor de Seguridad';
+
+            % Create TrescaEditFieldLabel
+            app.TrescaEditFieldLabel = uilabel(app.RightPanel);
+            app.TrescaEditFieldLabel.HorizontalAlignment = 'right';
+            app.TrescaEditFieldLabel.FontWeight = 'bold';
+            app.TrescaEditFieldLabel.FontAngle = 'italic';
+            app.TrescaEditFieldLabel.FontColor = [0.7176 0.2745 1];
+            app.TrescaEditFieldLabel.Position = [16 196 56 22];
+            app.TrescaEditFieldLabel.Text = 'Tresca';
+
+            % Create Tresca
+            app.Tresca = uieditfield(app.RightPanel, 'text');
+            app.Tresca.Editable = 'off';
+            app.Tresca.FontWeight = 'bold';
+            app.Tresca.FontAngle = 'italic';
+            app.Tresca.Position = [76 196 79 22];
+
+            % Create VonMisesEditFieldLabel
+            app.VonMisesEditFieldLabel = uilabel(app.RightPanel);
+            app.VonMisesEditFieldLabel.HorizontalAlignment = 'right';
+            app.VonMisesEditFieldLabel.FontWeight = 'bold';
+            app.VonMisesEditFieldLabel.FontAngle = 'italic';
+            app.VonMisesEditFieldLabel.FontColor = [0.7176 0.2745 1];
+            app.VonMisesEditFieldLabel.Position = [8 160 65 22];
+            app.VonMisesEditFieldLabel.Text = 'Von Mises';
+
+            % Create VonMises
+            app.VonMises = uieditfield(app.RightPanel, 'text');
+            app.VonMises.Editable = 'off';
+            app.VonMises.FontWeight = 'bold';
+            app.VonMises.FontAngle = 'italic';
+            app.VonMises.Position = [76 160 79 22];
+
+            % Show the figure after all components are created
+            app.UIFigure.Visible = 'on';
+        end
+    end
+
+    % App creation and deletion
+    methods (Access = public)
+
+        % Construct app
+        function app = TareaMohr
+
+            % Create UIFigure and components
+            createComponents(app)
+
+            % Register the app with App Designer
+            registerApp(app, app.UIFigure)
+
+            % Execute the startup function
+            runStartupFcn(app, @startupFcn)
+
+            if nargout == 0
+                clear app
+            end
+        end
+
+        % Code that executes before app deletion
+        function delete(app)
+
+            % Delete UIFigure when app is deleted
+            delete(app.UIFigure)
+        end
+    end
+end
